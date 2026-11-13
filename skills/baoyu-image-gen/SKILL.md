@@ -1,7 +1,7 @@
 ---
 name: baoyu-image-gen
-description: AI image generation with OpenAI GPT Image 2.5, Azure OpenAI, Google, OpenRouter, DashScope, Z.AI GLM-Image, MiniMax (image-01 and H3), SenseNova, Jimeng, Seedream, Replicate and Agnes APIs. Supports text-to-image, reference images, aspect ratios, and batch generation from saved prompt files. Sequential by default; use batch parallel generation when the user already has multiple prompts or wants stable multi-image throughput. Use when user asks to generate, create, or draw images.
-version: 2.3.0
+description: AI image generation with OpenAI GPT Image 2.5, Azure OpenAI, Google, OpenRouter, DashScope, Z.AI GLM-Image, MiniMax (image-01 and H3), SenseNova, Jimeng, Seedream (5.5/5.0/4.x), Replicate and Agnes APIs. Supports text-to-image, reference images, aspect ratios, and batch generation from saved prompt files. Sequential by default; use batch parallel generation when the user already has multiple prompts or wants stable multi-image throughput. Use when user asks to generate, create, or draw images.
+version: 2.3.1
 metadata:
   openclaw:
     homepage: https://github.com/JimLiu/baoyu-skills#baoyu-image-gen
@@ -88,7 +88,7 @@ When a real person/character/object must be preserved from reference images:
 | `--quality normal\|2k` | Quality preset (default: `2k`) |
 | `--imageSize 1K\|2K\|4K` | Image size for Google/OpenRouter (default: from quality) |
 | `--imageApiDialect openai-native\|ratio-metadata` | OpenAI-compatible endpoint dialect — use `ratio-metadata` for gateways that expect aspect-ratio `size` plus `metadata.resolution` |
-| `--ref <files...>` | Reference images. Supported by Google multimodal, OpenAI GPT Image edits, Azure OpenAI edits (PNG/JPG only), OpenRouter multimodal models, Replicate supported families, MiniMax subject-reference, MiniMax H3 (up to 16 refs), SenseNova (up to 5 refs), Seedream 5.0/4.5/4.0, DashScope `wan2.7-image-pro`/`wan2.7-image`. Not supported by Jimeng, Seedream 3.0, SeedEdit 3.0, or any DashScope model outside the `wan2.7-image*` family |
+| `--ref <files...>` | Reference images. Supported by Google multimodal, OpenAI GPT Image edits, Azure OpenAI edits (PNG/JPG only), OpenRouter multimodal models, Replicate supported families, MiniMax subject-reference, MiniMax H3 (up to 16 refs), SenseNova (up to 5 refs), Seedream 5.5 (up to 10 refs), Seedream 5.0/4.5/4.0, DashScope `wan2.7-image-pro`/`wan2.7-image` (up to 9 refs). Not supported by Jimeng, Seedream 3.0, SeedEdit 3.0, or any DashScope model outside the `wan2.7-image*` family |
 | `--n <count>` | Number of images. Replicate requires `--n 1` (single-output save semantics) |
 | `--json` | JSON output |
 
@@ -109,7 +109,7 @@ When a real person/character/object must be preserved from reference images:
 | `MINIMAX_H3_PROMPT_ENHANCED` | Set `1` to let MiniMax H3 enhance the prompt (default off) |
 | `REPLICATE_API_TOKEN` | Replicate API token |
 | `JIMENG_ACCESS_KEY_ID`, `JIMENG_SECRET_ACCESS_KEY` | Jimeng (即梦) Volcengine credentials |
-| `ARK_API_KEY` | Seedream (豆包) Volcengine ARK API key |
+| `ARK_API_KEY` | Seedream (豆包) Volcengine ARK API key; default model is `doubao-seedream-5-5-261028` |
 | `<PROVIDER>_IMAGE_MODEL` | Per-provider model override (`OPENAI_IMAGE_MODEL`, `GOOGLE_IMAGE_MODEL`, `DASHSCOPE_IMAGE_MODEL`, `ZAI_IMAGE_MODEL`/`BIGMODEL_IMAGE_MODEL`, `MINIMAX_IMAGE_MODEL`, `OPENROUTER_IMAGE_MODEL`, `REPLICATE_IMAGE_MODEL`, `JIMENG_IMAGE_MODEL`, `SEEDREAM_IMAGE_MODEL`, `AGNES_IMAGE_MODEL`) |
 | `AZURE_OPENAI_DEPLOYMENT` (alias `AZURE_OPENAI_IMAGE_MODEL`) | Azure default deployment |
 | `<PROVIDER>_BASE_URL` | Per-provider endpoint override |

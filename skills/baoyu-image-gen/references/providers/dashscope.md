@@ -16,11 +16,13 @@
 - Default is `1664*928`
 - `qwen-image` currently has the same capability as `qwen-image-plus`
 
-**`wan2.7-image*`** — multimodal Wan 2.7 family. Members: `wan2.7-image-pro`, `wan2.7-image`.
+**`wan2.7-image*`** — multimodal Wan 2.7 family. Members: `wan2.7-image-pro`, `wan2.7-image`. This is the newest Wan generation; `wan2.6-*` / `wan2.5-*` are older and not routed by name in this adapter.
 
 - Free-form `size` in `宽*高` format, plus aspect-ratio inference
 - `wan2.7-image-pro` text-to-image (no `--ref`): total pixels in `[768*768, 4096*4096]`, ratio in `[1:8, 8:1]`
 - `wan2.7-image-pro` with reference images and `wan2.7-image` (all scenarios): total pixels in `[768*768, 2048*2048]`, ratio in `[1:8, 8:1]`
+- `wan2.7-image` supports only `1K` / `2K` tiers; 4K is pro-only and text-to-image only
+- 3:4 card size `1536*2048` (3.15MP) is valid for both models (below the 4.19MP ceiling)
 - Default: `1024*1024` (`--quality normal`) or `2048*2048` (`--quality 2k`); 4K requires explicit `--size`
 - `--ref` for image editing / multi-image fusion (see Reference Images)
 - API does NOT use `prompt_extend`; the skill omits it for this family
@@ -52,12 +54,22 @@
 ## Reference Images
 
 - Only `wan2.7-image-pro` and `wan2.7-image` accept `--ref`; all other DashScope models reject it — steer the user to another provider/model.
-- Up to 9 reference images per request. Local files are inlined as base64 data URLs; `http(s)://` URLs are forwarded as-is.
+- Up to 9 reference images per request; each source image must be 240–8000px per edge, ratio within `[1:8, 8:1]`, and ≤20MB. Local files are inlined as base64 data URLs; `http(s)://` URLs are forwarded as-is.
 - Any `--ref` clamps the wan2.7-image-pro ceiling from 4K to 2K (4K is text-to-image only).
+- Official docs say the generated image follows the aspect ratio of the **last input image** when a resolution tier is used; passing an explicit `宽*高` overrides that and is the safer choice for fixed card layouts.
+
+## Pricing (Beijing, list price)
+
+- `wan2.7-image`: **¥0.20 / image**
+- `wan2.7-image-pro`: **¥0.50 / image**
+- Input images are not billed separately; only successfully generated images are charged. 50-image free quota exists on some regions/deployments within 90 days of activation — check the console, don't treat it as a permanent price.
+- `qwen-image-2.0-pro` / `qwen-image-3.0-pro` are priced separately (roughly ¥0.20–0.30 / image depending on size tier); confirm in the console before budgeting a set.
 
 ## Not Exposed
 
 `negative_prompt`, `prompt_extend`, `watermark`, `thinking_mode`, `seed`, `bbox_list`, `enable_sequential`, `color_palette` are not CLI flags; wan2.7 uses API defaults (e.g. `thinking_mode=true`). Always `n=1` for wan2.7 — grid/collage mode requires calling the API directly.
+
+Note: DashScope's wan2.7 request schema has **no `prompt_extend` field** — third-party gateways that accept `prompt_extend` map it onto `thinking_mode`. The wan2.7 defaults are therefore `thinking_mode=true` (slower, better quality; only applies to text-to-image without refs) and `watermark=false`. The adapter deliberately sends only `size`, `n: 1`, `watermark: false`.
 
 ## Official References
 

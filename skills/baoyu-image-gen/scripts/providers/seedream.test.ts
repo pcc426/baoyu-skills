@@ -243,3 +243,46 @@ test("Seedream generateImage posts the documented response_format and downloads 
   assert.ok(!("output_format" in requestBody));
   assert.equal(calls[1]?.input, "https://example.com/generated-image");
 });
+
+test("Seedream 5.5 follows the documented 1K/1.5K/2K size envelope", () => {
+  const model = "doubao-seedream-5-5-261028";
+
+  const body = buildRequestBody("A text-dense card", model, makeArgs());
+  assert.equal(body.size, "2K");
+  assert.equal(body.output_format, "png");
+  assert.equal(getDefaultOutputExtension(model), ".png");
+
+  assert.equal(resolveSeedreamSize(model, makeArgs({ size: "1.5K" })), "1.5K");
+  assert.equal(resolveSeedreamSize(model, makeArgs({ size: "1536x2048" })), "1536x2048");
+  assert.equal(resolveSeedreamSize(model, makeArgs({ size: "2880x1440" })), "2880x1440");
+
+  assert.throws(
+    () => resolveSeedreamSize(model, makeArgs({ size: "4K" })),
+    /only supports 1K, 1.5K, 2K/,
+  );
+  assert.throws(
+    () => resolveSeedreamSize(model, makeArgs({ size: "512x512" })),
+    /total pixels between/,
+  );
+  assert.throws(
+    () => resolveSeedreamSize(model, makeArgs({ size: "4096x4096" })),
+    /total pixels between/,
+  );
+  assert.throws(
+    () => resolveSeedreamSize(model, makeArgs({ size: "5000x200" })),
+    /total pixels between|aspect ratios/,
+  );
+});
+
+test("Seedream 5.5 reference images are capped at ten", () => {
+  const model = "doubao-seedream-5-5-261028";
+  const refs = (count: number) =>
+    Array.from({ length: count }, (_, index) => `ref-${index}.png`);
+
+  assert.doesNotThrow(() => validateArgs(model, makeArgs({ referenceImages: refs(10) })));
+  assert.throws(
+    () => validateArgs(model, makeArgs({ referenceImages: refs(11) })),
+    /at most 10 reference images/,
+  );
+  assert.doesNotThrow(() => validateArgs(model, makeArgs()));
+});

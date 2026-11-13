@@ -38,6 +38,15 @@ ${BUN_X} {baseDir}/scripts/main.ts --prompt "一间有着精致窗户的花店" 
 # DashScope Wan 2.7 Image with reference image (multi-image fusion)
 ${BUN_X} {baseDir}/scripts/main.ts --prompt "把图2的涂鸦喷绘在图1的汽车上" --image out.png --provider dashscope --model wan2.7-image-pro --ref car.webp paint.webp
 
+# DashScope Wan 2.7 Image, 3:4 card at 1536x2048
+${BUN_X} {baseDir}/scripts/main.ts --prompt "一张 3:4 竖版中文知识卡" --image out.png --provider dashscope --model wan2.7-image --size 1536x2048
+
+# Seedream 5.5 (Volcengine ARK), 3:4 card
+${BUN_X} {baseDir}/scripts/main.ts --prompt "一张 3:4 竖版中文知识卡" --image out.png --provider seedream --model doubao-seedream-5-5-261028 --size 1536x2048
+
+# Seedream 5.5 with reference images (up to 10)
+${BUN_X} {baseDir}/scripts/main.ts --prompt "保持人物一致，换到图书馆场景" --image out.png --provider seedream --model doubao-seedream-5-5-261028 --size 1536x2048 --ref portrait.png
+
 # Z.AI GLM-image
 ${BUN_X} {baseDir}/scripts/main.ts --prompt "一张带清晰中文标题的科技海报" --image out.png --provider zai
 

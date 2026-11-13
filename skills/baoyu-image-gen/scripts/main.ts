@@ -140,7 +140,7 @@ Environment variables:
   MINIMAX_IMAGE_MODEL       Default MiniMax model (image-01)
   REPLICATE_IMAGE_MODEL     Default Replicate model (google/nano-banana-2)
   JIMENG_IMAGE_MODEL        Default Jimeng model (jimeng_t2i_v40)
-  SEEDREAM_IMAGE_MODEL      Default Seedream model (doubao-seedream-5-0-260128)
+  SEEDREAM_IMAGE_MODEL      Default Seedream model (doubao-seedream-5-5-261028)
   OPENAI_BASE_URL           Custom OpenAI endpoint
   OPENAI_IMAGE_API_DIALECT  OpenAI-compatible image dialect (openai-native|ratio-metadata)
   OPENAI_IMAGE_USE_CHAT     Use /chat/completions instead of /images/generations (true|false)

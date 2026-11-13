@@ -35,13 +35,15 @@ options:
     description: "GLM-image, strong poster and text-heavy image generation"
   - label: "MiniMax"
     description: "MiniMax image generation with subject-reference character workflows"
+  - label: "Seedream"
+    description: "ByteDance Seedream on Volcengine ARK - 5.5, multi-round editing and reference images"
   - label: "Replicate"
     description: "Curated Replicate image families - nano-banana-2, Seedream, and Wan image models"
   - label: "Agnes"
     description: "Sapiens AI Agnes - optimized for high information density, complex layouts, reference-image support"
 ```
 
-2. **Model** — only for these choices, using the matching question under [Model Questions](#model-questions): Google (also when auto-detect / no explicit provider), OpenRouter, Azure OpenAI, MiniMax, Z.AI.
+2. **Model** — only for these choices, using the matching question under [Model Questions](#model-questions): Google (also when auto-detect / no explicit provider), OpenRouter, Azure OpenAI, MiniMax, Z.AI, Seedream.
 
 3. **Quality**:
 
@@ -90,6 +92,7 @@ default_model:
   dashscope: null
   zai: [selected Z.AI model or null]
   minimax: [selected minimax model or null]
+  seedream: [selected Seedream model or null]
   replicate: null
   agnes: null
 ---
@@ -256,6 +259,22 @@ options:
     description: "Best general-purpose MiniMax image model with custom width/height support"
   - label: "image-01-live"
     description: "Lower-latency MiniMax image model using aspect ratios"
+```
+
+### Seedream
+
+```yaml
+header: "Seedream Model"
+question: "Default Seedream (Volcengine ARK) model?"
+options:
+  - label: "doubao-seedream-5-5-261028 (Recommended)"
+    description: "Seedream 5.5 - newest, ~¥0.28 per 2K edit, up to 10 refs; no 4K, no group generation"
+  - label: "doubao-seedream-5-0-pro-260628"
+    description: "Seedream 5.0 Pro - supports 3K and interactive editing"
+  - label: "doubao-seedream-5-0-flash-260915"
+    description: "Seedream 5.0 Flash - faster and cheaper than Pro"
+  - label: "doubao-seedream-4-5-251128"
+    description: "Seedream 4.5 - 2K/4K and group generation"
 ```
 
 ## After Setup

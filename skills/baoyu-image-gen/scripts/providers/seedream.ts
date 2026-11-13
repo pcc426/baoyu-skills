@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import type { CliArgs } from "../types";
 
 export type SeedreamModelFamily =
+  | "seedream55"
   | "seedream5"
   | "seedream45"
   | "seedream40"
@@ -45,8 +46,12 @@ type SeedreamImageResponse = {
   };
 };
 
+const SEEDREAM55_MIN_PIXELS = 1280 * 720;
+const SEEDREAM55_MAX_PIXELS = Math.round(2048 * 2048 * 1.1025);
+const SEEDREAM55_MAX_REFERENCE_IMAGES = 10;
+
 export function getDefaultModel(): string {
-  return process.env.SEEDREAM_IMAGE_MODEL || "doubao-seedream-5-0-260128";
+  return process.env.SEEDREAM_IMAGE_MODEL || "doubao-seedream-5-5-261028";
 }
 
 function getApiKey(): string | null {
@@ -79,7 +84,9 @@ function normalizePixelSize(value: string): string | null {
 function normalizeSizePreset(value: string): string | null {
   const upper = value.trim().toUpperCase();
   if (upper === "ADAPTIVE") return "adaptive";
-  if (upper === "1K" || upper === "2K" || upper === "3K" || upper === "4K") return upper;
+  if (upper === "1K" || upper === "1.5K" || upper === "2K" || upper === "3K" || upper === "4K") {
+    return upper;
+  }
   return null;
 }
 
@@ -104,6 +111,7 @@ async function readImageAsDataUrl(filePath: string): Promise<string> {
 
 export function getModelFamily(model: string): SeedreamModelFamily {
   const normalized = model.trim();
+  if (/^doubao-seedream-5-5(?:-lite)?-\d+$/.test(normalized)) return "seedream55";
   if (/^doubao-seedream-5-0(?:-lite)?-\d+$/.test(normalized)) return "seedream5";
   if (/^doubao-seedream-4-5-\d+$/.test(normalized)) return "seedream45";
   if (/^doubao-seedream-4-0-\d+$/.test(normalized)) return "seedream40";
@@ -125,11 +133,17 @@ function assertSupportedModel(model: string): void {
 
 export function supportsReferenceImages(model: string): boolean {
   const family = getModelFamily(model);
-  return family === "seedream5" || family === "seedream45" || family === "seedream40";
+  return (
+    family === "seedream55" ||
+    family === "seedream5" ||
+    family === "seedream45" ||
+    family === "seedream40"
+  );
 }
 
 function supportsOutputFormat(model: string): boolean {
-  return getModelFamily(model) === "seedream5";
+  const family = getModelFamily(model);
+  return family === "seedream55" || family === "seedream5";
 }
 
 export function getDefaultOutputExtension(model: string): ".png" | ".jpg" {
@@ -141,11 +155,36 @@ export function getDefaultSeedreamSize(model: string, args: CliArgs): string {
   assertSupportedModel(model);
   const family = getModelFamily(model);
 
+  if (family === "seedream55") return "2K";
   if (family === "seedream5") return "2K";
   if (family === "seedream45") return "2K";
   if (family === "seedream40") return args.quality === "normal" ? "1K" : "2K";
   if (family === "seedream30") return args.quality === "2k" ? "2048x2048" : "1024x1024";
   return "2K";
+}
+
+function validateSeedream55Size(size: string): string {
+  const pixelSize = parsePixelSize(size);
+  if (!pixelSize) return size;
+
+  const totalPixels = pixelSize.width * pixelSize.height;
+  if (totalPixels < SEEDREAM55_MIN_PIXELS || totalPixels > SEEDREAM55_MAX_PIXELS) {
+    throw new Error(
+      `Seedream 5.5 requires total pixels between 1280x720 (${SEEDREAM55_MIN_PIXELS}) ` +
+        `and 2048x2048x1.1025 (${SEEDREAM55_MAX_PIXELS}). ` +
+        `Received ${size} (${totalPixels} pixels).`,
+    );
+  }
+
+  const ratio = pixelSize.width / pixelSize.height;
+  if (ratio < 1 / 16 || ratio > 16) {
+    throw new Error(
+      `Seedream 5.5 supports aspect ratios in [1/16, 16]. ` +
+        `Received ${size} (ratio ${ratio.toFixed(3)}).`,
+    );
+  }
+
+  return size;
 }
 
 export function resolveSeedreamSize(model: string, args: CliArgs): string {
@@ -164,6 +203,15 @@ export function resolveSeedreamSize(model: string, args: CliArgs): string {
       throw new Error("Seedream 3.0 only supports explicit WxH sizes such as 1024x1024.");
     }
     return pixelSize;
+  }
+
+  if (family === "seedream55") {
+    if (normalized === "3K" || normalized === "4K" || normalized === "adaptive") {
+      throw new Error(
+        "Seedream 5.5 only supports 1K, 1.5K, 2K, or explicit WxH sizes.",
+      );
+    }
+    return validateSeedream55Size(normalized);
   }
 
   if (family === "seedream5") {
@@ -218,6 +266,12 @@ export function validateArgs(model: string, args: CliArgs): void {
 
   if (!supportsReferenceImages(model)) {
     throw new Error(`${model} does not support reference images.`);
+  }
+
+  if (family === "seedream55" && refCount > SEEDREAM55_MAX_REFERENCE_IMAGES) {
+    throw new Error(
+      `${model} supports at most ${SEEDREAM55_MAX_REFERENCE_IMAGES} reference images.`,
+    );
   }
 
   if ((family === "seedream5" || family === "seedream45" || family === "seedream40") && refCount > 14) {
