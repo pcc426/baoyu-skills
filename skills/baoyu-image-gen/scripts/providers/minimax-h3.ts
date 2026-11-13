@@ -151,7 +151,6 @@ export async function buildRequestBody(
     prompt,
     output_format: "png",
     response_format: "url",
-    disable_prompt_enhanced: !wantsPromptEnhance(),
   };
 
   if (args.size) {
@@ -173,10 +172,13 @@ export async function buildRequestBody(
 
   const images = await buildReferenceImages(args.referenceImages);
   if (images) {
+    // /images/edits 不支持 disable_prompt_enhanced，提示词始终会被增强
+    console.error("[minimax-h3] reference images present: prompt enhancement cannot be disabled on edits");
     body.images = images;
     return { endpoint: "edits", body };
   }
 
+  body.disable_prompt_enhanced = !wantsPromptEnhance();
   return { endpoint: "generations", body };
 }
 

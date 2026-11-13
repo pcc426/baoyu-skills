@@ -32,7 +32,9 @@ H3 与老的 `image-01`（`--provider minimax`）是**两套完全不同**的接
 请求发出后即使客户端超时/断连，服务端仍会生成并计费。适配器导出 `maxAttempts = 1`，`main.ts` 会据此跳过全局的 3 次重试。失败请人工确认后重跑。
 
 **2. prompt 增强默认开启**
-`disable_prompt_enhanced` 默认 `false`，模型会自行扩写提示词。适配器默认传 `true`；需要增强时设 `MINIMAX_H3_PROMPT_ENHANCED=1`。
+`disable_prompt_enhanced` 默认 `false`，模型会自行扩写提示词。生成接口默认传 `true`；需要增强时设 `MINIMAX_H3_PROMPT_ENHANCED=1`。
+
+**注意：参考图编辑（`/images/edits`）不接受这个参数**——传了会 400：`invalid params, disable_prompt_enhanced is not supported for image edits, prompts are always enhanced`。适配器在带 `--ref` 时会自动省略该字段，并在 stderr 提示「提示词将始终被增强」，此时务必逐字核对成图文字。
 
 ## 计费（按 token，不按张）
 
