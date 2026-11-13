@@ -777,7 +777,7 @@ AI-powered generation backends.
 
 #### baoyu-image-gen
 
-AI SDK-based image generation using OpenAI GPT Image 2, Azure OpenAI, Google, OpenRouter, DashScope (Aliyun Tongyi Wanxiang), MiniMax, Jimeng (即梦), Seedream (豆包), and Replicate APIs. Supports text-to-image, reference images, aspect ratios, custom sizes, batch generation, and quality presets.
+AI SDK-based image generation using OpenAI GPT Image 2, Azure OpenAI, Google, OpenRouter, DashScope (Aliyun Tongyi Wanxiang), MiniMax (image-01 and H3 Image), SenseNova (商汤日日新), Jimeng (即梦), Seedream (豆包), and Replicate APIs. Supports text-to-image, reference images, aspect ratios, custom sizes, batch generation, and quality presets.
 
 ```bash
 # Basic generation (auto-detect provider)
@@ -816,6 +816,12 @@ AI SDK-based image generation using OpenAI GPT Image 2, Azure OpenAI, Google, Op
 # MiniMax with subject reference
 /baoyu-image-gen --prompt "A girl stands by the library window, cinematic lighting" --image out.jpg --provider minimax --model image-01 --ref portrait.png --ar 16:9
 
+# MiniMax H3 (new protocol, up to 16 refs, token billing)
+/baoyu-image-gen --prompt "一张带清晰中文标题的知识卡片" --image out.png --provider minimax-h3 --size 1536x2048
+
+# SenseNova (商汤日日新, 32-multiple sizes, no watermark)
+/baoyu-image-gen --prompt "一张带清晰中文标题的知识卡片" --image out.png --provider sensenova --size 1536x2048
+
 # Replicate (default: google/nano-banana-2)
 /baoyu-image-gen --prompt "A cat" --image cat.png --provider replicate
 
@@ -846,8 +852,8 @@ AI SDK-based image generation using OpenAI GPT Image 2, Azure OpenAI, Google, Op
 | `--image` | Output image path (required) |
 | `--batchfile` | JSON batch file for multi-image generation |
 | `--jobs` | Worker count for batch mode |
-| `--provider` | `google`, `openai`, `azure`, `openrouter`, `dashscope`, `zai`, `minimax`, `jimeng`, `seedream`, `replicate`, or `agnes` |
-| `--model`, `-m` | Model ID or deployment name. Azure uses deployment name; OpenRouter uses full model IDs; Z.AI uses `glm-image`; MiniMax uses `image-01` / `image-01-live` |
+| `--provider` | `google`, `openai`, `azure`, `openrouter`, `dashscope`, `zai`, `minimax`, `minimax-h3`, `sensenova`, `jimeng`, `seedream`, `replicate`, or `agnes` |
+| `--model`, `-m` | Model ID or deployment name. Azure uses deployment name; OpenRouter uses full model IDs; Z.AI uses `glm-image`; MiniMax uses `image-01` / `image-01-live`; MiniMax H3 uses `MiniMax-H3-Image` / `MiniMax-H3-Image-Highspeed`; SenseNova uses `sensenova-u1.5-lite` / `sensenova-u1.5-fast` |
 | `--ar` | Aspect ratio (e.g., `16:9`, `1:1`, `4:3`) |
 | `--size` | Size (e.g., `1024x1024`; `gpt-image-2` accepts valid custom sizes up to 3840px max edge) |
 | `--quality` | `normal` or `2k` (default: `2k`) |

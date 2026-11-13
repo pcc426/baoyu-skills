@@ -10,7 +10,9 @@ export type Provider =
   | "seedream"
   | "azure"
   | "codex-cli"
-  | "agnes";
+  | "agnes"
+  | "sensenova"
+  | "minimax-h3";
 export type Quality = "normal" | "2k";
 export type OpenAIImageApiDialect = "openai-native" | "ratio-metadata";
 export type ResponseFormat = "file" | "url";
@@ -81,6 +83,8 @@ export type ExtendConfig = {
     azure: string | null;
     "codex-cli": string | null;
     agnes: string | null;
+    sensenova: string | null;
+    "minimax-h3": string | null;
   };
   batch?: {
     max_workers?: number | null;

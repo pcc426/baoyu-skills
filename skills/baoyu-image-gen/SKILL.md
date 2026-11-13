@@ -1,7 +1,7 @@
 ---
 name: baoyu-image-gen
-description: AI image generation with OpenAI GPT Image 2.5, Azure OpenAI, Google, OpenRouter, DashScope, Z.AI GLM-Image, MiniMax, Jimeng, Seedream, Replicate and Agnes APIs. Supports text-to-image, reference images, aspect ratios, and batch generation from saved prompt files. Sequential by default; use batch parallel generation when the user already has multiple prompts or wants stable multi-image throughput. Use when user asks to generate, create, or draw images.
-version: 2.2.0
+description: AI image generation with OpenAI GPT Image 2.5, Azure OpenAI, Google, OpenRouter, DashScope, Z.AI GLM-Image, MiniMax (image-01 and H3), SenseNova, Jimeng, Seedream, Replicate and Agnes APIs. Supports text-to-image, reference images, aspect ratios, and batch generation from saved prompt files. Sequential by default; use batch parallel generation when the user already has multiple prompts or wants stable multi-image throughput. Use when user asks to generate, create, or draw images.
+version: 2.3.0
 metadata:
   openclaw:
     homepage: https://github.com/JimLiu/baoyu-skills#baoyu-image-gen
@@ -81,14 +81,14 @@ When a real person/character/object must be preserved from reference images:
 | `--image <path>` | Output image path (required in single-image mode) |
 | `--batchfile <path>` | JSON batch file for multi-image generation |
 | `--jobs <count>` | Worker count for batch mode (default: auto, max from config, built-in default 10) |
-| `--provider google\|openai\|azure\|openrouter\|dashscope\|zai\|minimax\|jimeng\|seedream\|replicate\|codex-cli\|agnes` | Force provider (default: auto-detect; `codex-cli` is never auto-selected — must be pinned via CLI or EXTEND.md) |
+| `--provider google\|openai\|azure\|openrouter\|dashscope\|zai\|minimax\|minimax-h3\|sensenova\|jimeng\|seedream\|replicate\|codex-cli\|agnes` | Force provider (default: auto-detect; `codex-cli` is never auto-selected — must be pinned via CLI or EXTEND.md) |
 | `--model <id>`, `-m` | Model ID — see provider references for defaults and allowed values |
 | `--ar <ratio>` | Aspect ratio (`16:9`, `1:1`, `4:3`, …) |
 | `--size <WxH>` | Explicit size (e.g., `1024x1024`; for `gpt-image-2.5-*` and `gpt-image-2`, width/height must be multiples of 16, max edge 3840px, ratio no wider than 3:1) |
 | `--quality normal\|2k` | Quality preset (default: `2k`) |
 | `--imageSize 1K\|2K\|4K` | Image size for Google/OpenRouter (default: from quality) |
 | `--imageApiDialect openai-native\|ratio-metadata` | OpenAI-compatible endpoint dialect — use `ratio-metadata` for gateways that expect aspect-ratio `size` plus `metadata.resolution` |
-| `--ref <files...>` | Reference images. Supported by Google multimodal, OpenAI GPT Image edits, Azure OpenAI edits (PNG/JPG only), OpenRouter multimodal models, Replicate supported families, MiniMax subject-reference, Seedream 5.0/4.5/4.0, DashScope `wan2.7-image-pro`/`wan2.7-image`. Not supported by Jimeng, Seedream 3.0, SeedEdit 3.0, or any DashScope model outside the `wan2.7-image*` family |
+| `--ref <files...>` | Reference images. Supported by Google multimodal, OpenAI GPT Image edits, Azure OpenAI edits (PNG/JPG only), OpenRouter multimodal models, Replicate supported families, MiniMax subject-reference, MiniMax H3 (up to 16 refs), SenseNova (up to 5 refs), Seedream 5.0/4.5/4.0, DashScope `wan2.7-image-pro`/`wan2.7-image`. Not supported by Jimeng, Seedream 3.0, SeedEdit 3.0, or any DashScope model outside the `wan2.7-image*` family |
 | `--n <count>` | Number of images. Replicate requires `--n 1` (single-output save semantics) |
 | `--json` | JSON output |
 
@@ -102,7 +102,11 @@ When a real person/character/object must be preserved from reference images:
 | `GOOGLE_API_KEY` | Google API key |
 | `DASHSCOPE_API_KEY` | DashScope API key |
 | `ZAI_API_KEY` (alias `BIGMODEL_API_KEY`) | Z.AI API key |
-| `MINIMAX_API_KEY` | MiniMax API key |
+| `MINIMAX_API_KEY` | MiniMax API key (image-01 via `minimax`, H3 via `minimax-h3`) |
+| `SENSENOVA_API_KEY` | SenseNova (商汤日日新) API key |
+| `SENSENOVA_WATERMARK` | Set `1` to keep SenseNova's 日日新 watermark (default off) |
+| `SENSENOVA_PROMPT_EXTEND` | Set `1` to let SenseNova rewrite the prompt (default off) |
+| `MINIMAX_H3_PROMPT_ENHANCED` | Set `1` to let MiniMax H3 enhance the prompt (default off) |
 | `REPLICATE_API_TOKEN` | Replicate API token |
 | `JIMENG_ACCESS_KEY_ID`, `JIMENG_SECRET_ACCESS_KEY` | Jimeng (即梦) Volcengine credentials |
 | `ARK_API_KEY` | Seedream (豆包) Volcengine ARK API key |
@@ -112,6 +116,7 @@ When a real person/character/object must be preserved from reference images:
 | `AZURE_API_VERSION` | Azure image API version (default `2025-04-01-preview`) |
 | `JIMENG_REGION` | Jimeng region (default `cn-north-1`) |
 | `OPENAI_IMAGE_API_DIALECT` | `openai-native` \| `ratio-metadata` |
+| `OPENAI_EXTRA_BODY` | JSON object merged into the OpenAI-compatible `/images/generations` body (e.g. `{"watermark":false,"prompt_extend":false}` for gateways like SenseNova) |
 | `OPENROUTER_HTTP_REFERER`, `OPENROUTER_TITLE` | Optional OpenRouter attribution |
 | `BAOYU_IMAGE_GEN_MAX_WORKERS` | Override batch worker cap |
 | `BAOYU_IMAGE_GEN_<PROVIDER>_CONCURRENCY` | Per-provider concurrency (e.g., `BAOYU_IMAGE_GEN_REPLICATE_CONCURRENCY`; for codex-cli use `BAOYU_IMAGE_GEN_CODEX_CLI_CONCURRENCY`) |
@@ -144,6 +149,8 @@ Priority for every provider: CLI `--model <id>` > EXTEND.md `default_model.[prov
 - **Google**: default `gemini-3-pro-image`. `gemini-3.1-flash-image` is faster/cheaper; `gemini-3.1-flash-lite-image` is cheapest and 1K-only (`--quality 2k` / `--imageSize 2K|4K` clamp to 1K with a warning).
 - **DashScope**: default `qwen-image-2.0-pro`; `qwen-image-3.0-pro` is the newest flagship with the same sizing rules.
 - **Azure**: `--model` / `default_model.azure` is the deployment name (`AZURE_OPENAI_DEPLOYMENT`, alias `AZURE_OPENAI_IMAGE_MODEL`). Use `gpt-image-2.5-flare` if the deployment is named after the model, else the exact custom name.
+- **MiniMax H3**: default `MiniMax-H3-Image`; `MiniMax-H3-Image-Highspeed` is faster but bills output tokens at 2x.
+- **SenseNova**: default `sensenova-u1.5-lite`; `sensenova-u1.5-fast` trades quality for speed. One image per request.
 
 Before each generation, display:
 
@@ -166,6 +173,8 @@ Read when the user picks that provider or asks for non-default behavior:
 | DashScope (Qwen-Image families, custom sizes) | `references/providers/dashscope.md` |
 | Z.AI (GLM-Image, cogview-4) | `references/providers/zai.md` |
 | MiniMax (image-01, subject-reference) | `references/providers/minimax.md` |
+| MiniMax H3 (multi-reference edits, 4K, token billing) | `references/providers/minimax-h3.md` |
+| SenseNova (商汤 U1.5, 32-multiple sizes, Chinese text) | `references/providers/sensenova.md` |
 | OpenRouter (multimodal models, `/chat/completions` flow) | `references/providers/openrouter.md` |
 | Replicate (nano-banana, Seedream, Wan) | `references/providers/replicate.md` |
 | Codex CLI (wraps bundled `scripts/codex-imagegen/`; Codex login, no `OPENAI_API_KEY`) | `references/providers/codex-cli.md` |
@@ -173,10 +182,10 @@ Read when the user picks that provider or asks for non-default behavior:
 
 ## Provider Selection
 
-1. `--ref` provided + no `--provider` → auto-select Google → OpenAI → Azure → OpenRouter → Replicate → Seedream → MiniMax → Agnes (MiniMax subject reference is specialized for character/portrait consistency)
-2. `--provider` specified → use it (with `--ref`, must be google/openai/azure/openrouter/replicate/seedream/minimax/codex-cli/agnes)
+1. `--ref` provided + no `--provider` → auto-select Google → OpenAI → Azure → OpenRouter → Replicate → Seedream → MiniMax → Agnes → SenseNova (MiniMax subject reference is specialized for character/portrait consistency)
+2. `--provider` specified → use it (with `--ref`, must be google/openai/azure/openrouter/replicate/seedream/minimax/minimax-h3/sensenova/codex-cli/agnes)
 3. Only one API key present → that provider
-4. Multiple keys → Google → OpenAI → Azure → OpenRouter → DashScope → Z.AI → MiniMax → Replicate → Jimeng → Seedream → Agnes
+4. Multiple keys → Google → OpenAI → Azure → OpenRouter → DashScope → Z.AI → MiniMax → Replicate → Jimeng → Seedream → Agnes → SenseNova → MiniMax H3
 5. `codex-cli` is **never auto-selected** — pin via `default_provider: codex-cli` or `--provider codex-cli`. Runs `codex exec` through the bundled `scripts/codex-imagegen/main.ts` (with `bun`) on the user's Codex subscription; requires `codex` on `PATH` with an active `codex login`.
 
 ## Quality Presets
@@ -199,6 +208,18 @@ Supported: `1:1`, `16:9`, `9:16`, `4:3`, `3:4`, `2.35:1`.
 - OpenRouter: `imageGenerationOptions.aspect_ratio`; with only `--size <WxH>`, the ratio is inferred
 - Replicate: model-specific — `google/nano-banana*` uses `aspect_ratio`, `bytedance/seedream-*` uses documented Replicate ratios, Wan 2.7 maps `--ar` to a concrete `size`
 - MiniMax: official `aspect_ratio` values; `--size <WxH>` without `--ar` sends `width`/`height` for `image-01`
+- MiniMax H3: `--size <WxH>` (total pixels 655,360–20,000,000, ratio ≤3:1) or `--ar <ratio>` which sends `size: auto` + `aspect_ratio` + `area` (1K/2K by quality)
+- SenseNova: no ratio parameter — `--ar` maps to a preset pixel size (3:4 → 1536x2048); `--size` must be multiples of 32 with each edge 512–4096
+
+## Verbatim Text in Generated Images
+
+When the prompt contains copy that must appear **exactly** (card titles, body lines, labels, book covers), wrap every such string in backticks inside the prompt and state that backticked strings must be rendered verbatim, character for character:
+
+- `第一，先看结论` — render exactly as written, do not translate, reword, or add punctuation
+- Keep one backticked unit per visual block; long paragraphs render worse than short lines
+- Never rely on the model to infer punctuation style; write the punctuation you want inside the backticks
+
+Empirically (2026-11): SenseNova U1.5 holds backticked Chinese copy verbatim even at 70–75% text density, but drops characters when the copy is *nested* (e.g. a book title printed onto a book cover drawn inside the card). MiniMax H3 renders backticked lines nearly verbatim but invents extra structural labels and sometimes garbles non-backticked micro-labels. Both need a spot-check pass before delivery.
 
 ## Generation Mode
 

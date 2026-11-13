@@ -778,7 +778,7 @@ AI 驱动的生成后端。
 
 #### baoyu-image-gen
 
-基于 AI SDK 的图像生成，支持 OpenAI GPT Image 2、Azure OpenAI、Google、OpenRouter、DashScope（阿里通义万相）、MiniMax、即梦（Jimeng）、豆包（Seedream）和 Replicate API。支持文生图、参考图、宽高比、自定义尺寸、批量生成和质量预设。
+基于 AI SDK 的图像生成，支持 OpenAI GPT Image 2、Azure OpenAI、Google、OpenRouter、DashScope（阿里通义万相）、MiniMax（image-01 与 H3 Image）、SenseNova（商汤日日新）、即梦（Jimeng）、豆包（Seedream）和 Replicate API。支持文生图、参考图、宽高比、自定义尺寸、批量生成和质量预设。
 
 ```bash
 # 基础生成（自动检测服务商）
@@ -817,6 +817,12 @@ AI 驱动的生成后端。
 # MiniMax + 角色参考图
 /baoyu-image-gen --prompt "A girl stands by the library window, cinematic lighting" --image out.jpg --provider minimax --model image-01 --ref portrait.png --ar 16:9
 
+# MiniMax H3（新协议，最多 16 张参考图，按 token 计费）
+/baoyu-image-gen --prompt "一张带清晰中文标题的知识卡片" --image out.png --provider minimax-h3 --size 1536x2048
+
+# SenseNova（商汤日日新，尺寸需 32 的倍数，默认无水印）
+/baoyu-image-gen --prompt "一张带清晰中文标题的知识卡片" --image out.png --provider sensenova --size 1536x2048
+
 # Replicate（默认：google/nano-banana-2）
 /baoyu-image-gen --prompt "一只猫" --image cat.png --provider replicate
 
@@ -847,8 +853,8 @@ AI 驱动的生成后端。
 | `--image` | 输出图片路径（必需） |
 | `--batchfile` | 多图批量生成的 JSON 文件 |
 | `--jobs` | 批量模式的并发 worker 数 |
-| `--provider` | `google`、`openai`、`azure`、`openrouter`、`dashscope`、`zai`、`minimax`、`jimeng`、`seedream`、`replicate` 或 `agnes` |
-| `--model`, `-m` | 模型 ID 或部署名。Azure 使用部署名；OpenRouter 使用完整模型 ID；Z.AI 使用 `glm-image`；MiniMax 使用 `image-01` / `image-01-live` |
+| `--provider` | `google`、`openai`、`azure`、`openrouter`、`dashscope`、`zai`、`minimax`、`minimax-h3`、`sensenova`、`jimeng`、`seedream`、`replicate` 或 `agnes` |
+| `--model`, `-m` | 模型 ID 或部署名。Azure 使用部署名；OpenRouter 使用完整模型 ID；Z.AI 使用 `glm-image`；MiniMax 使用 `image-01` / `image-01-live`；MiniMax H3 使用 `MiniMax-H3-Image` / `MiniMax-H3-Image-Highspeed`；SenseNova 使用 `sensenova-u1.5-lite` / `sensenova-u1.5-fast` |
 | `--ar` | 宽高比（如 `16:9`、`1:1`、`4:3`） |
 | `--size` | 尺寸（如 `1024x1024`；`gpt-image-2` 支持最长边不超过 3840px 的有效自定义尺寸） |
 | `--quality` | `normal` 或 `2k`（默认：`2k`） |

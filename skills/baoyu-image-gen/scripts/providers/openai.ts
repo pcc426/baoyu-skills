@@ -313,8 +313,27 @@ export async function generateImage(
   return generateWithOpenAIGenerations(
     baseURL,
     apiKey,
-    buildOpenAIGenerationsBody(prompt, model, args)
+    withExtraBody(buildOpenAIGenerationsBody(prompt, model, args))
   );
+}
+
+/**
+ * 把 OPENAI_EXTRA_BODY（JSON 对象）合并进生成请求体。
+ * 用于 OpenAI 兼容网关的私有字段，例如商汤的 {"watermark":false,"prompt_extend":false}。
+ */
+function withExtraBody<T>(body: T): T {
+  const raw = process.env.OPENAI_EXTRA_BODY;
+  if (!raw) return body;
+  let extra: unknown;
+  try {
+    extra = JSON.parse(raw);
+  } catch {
+    throw new Error('OPENAI_EXTRA_BODY must be valid JSON, e.g. {"watermark":false}');
+  }
+  if (!extra || typeof extra !== "object" || Array.isArray(extra)) {
+    throw new Error('OPENAI_EXTRA_BODY must be a JSON object, e.g. {"watermark":false}');
+  }
+  return { ...body, ...(extra as Record<string, unknown>) } as T;
 }
 
 async function generateWithChatCompletions(

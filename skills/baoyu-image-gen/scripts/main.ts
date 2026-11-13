@@ -17,6 +17,8 @@ type ProviderModule = {
   generateImage: (prompt: string, model: string, args: CliArgs) => Promise<Uint8Array>;
   validateArgs?: (model: string, args: CliArgs) => void;
   getDefaultOutputExtension?: (model: string, args: CliArgs) => string;
+  /** 覆盖全局重试次数；非幂等接口（如 MiniMax H3）传 1 以避免重复计费 */
+  maxAttempts?: number;
 };
 
 type PreparedTask = {
@@ -66,6 +68,8 @@ const DEFAULT_PROVIDER_RATE_LIMITS: Record<Provider, ProviderRateLimit> = {
   azure: { concurrency: 3, startIntervalMs: 1100 },
   "codex-cli": { concurrency: 1, startIntervalMs: 2000 },
   agnes: { concurrency: 3, startIntervalMs: 1100 },
+  sensenova: { concurrency: 2, startIntervalMs: 2000 },
+  "minimax-h3": { concurrency: 4, startIntervalMs: 500 },
 };
 
 function printUsage(): void {
@@ -80,7 +84,7 @@ Options:
   --image <path>            Output image path (required in single-image mode)
   --batchfile <path>        JSON batch file for multi-image generation
   --jobs <count>            Worker count for batch mode (default: auto, max from config, built-in default 10)
-  --provider google|openai|openrouter|dashscope|zai|minimax|replicate|jimeng|seedream|azure|codex-cli|agnes  Force provider (auto-detect by default)
+  --provider google|openai|openrouter|dashscope|zai|minimax|minimax-h3|sensenova|replicate|jimeng|seedream|azure|codex-cli|agnes  Force provider (auto-detect by default)
   -m, --model <id>          Model ID
   --ar <ratio>              Aspect ratio (e.g., 16:9, 1:1, 4:3)
   --size <WxH>              Size (e.g., 1024x1024)
@@ -269,7 +273,9 @@ export function parseArgs(argv: string[]): CliArgs {
         v !== "seedream" &&
         v !== "azure" &&
         v !== "codex-cli" &&
-        v !== "agnes"
+        v !== "agnes" &&
+        v !== "sensenova" &&
+        v !== "minimax-h3"
       ) {
         throw new Error(`Invalid provider: ${v}`);
       }
@@ -450,6 +456,8 @@ export function parseSimpleYaml(yaml: string): Partial<ExtendConfig> {
           azure: null,
           "codex-cli": null,
           agnes: null,
+          sensenova: null,
+          "minimax-h3": null,
         };
         currentKey = "default_model";
         currentProvider = null;
@@ -480,7 +488,9 @@ export function parseSimpleYaml(yaml: string): Partial<ExtendConfig> {
           key === "seedream" ||
           key === "azure" ||
           key === "codex-cli" ||
-          key === "agnes"
+          key === "agnes" ||
+          key === "sensenova" ||
+          key === "minimax-h3"
         )
       ) {
         config.batch ??= {};
@@ -501,7 +511,9 @@ export function parseSimpleYaml(yaml: string): Partial<ExtendConfig> {
           key === "seedream" ||
           key === "azure" ||
           key === "codex-cli" ||
-          key === "agnes"
+          key === "agnes" ||
+          key === "sensenova" ||
+          key === "minimax-h3"
         )
       ) {
         const cleaned = value.replace(/['"]/g, "");
@@ -670,9 +682,11 @@ export function getConfiguredProviderRateLimits(
     azure: { ...DEFAULT_PROVIDER_RATE_LIMITS.azure },
     "codex-cli": { ...DEFAULT_PROVIDER_RATE_LIMITS["codex-cli"] },
     agnes: { ...DEFAULT_PROVIDER_RATE_LIMITS.agnes },
+    sensenova: { ...DEFAULT_PROVIDER_RATE_LIMITS.sensenova },
+    "minimax-h3": { ...DEFAULT_PROVIDER_RATE_LIMITS["minimax-h3"] },
   };
 
-  for (const provider of ["replicate", "google", "openai", "openrouter", "dashscope", "zai", "minimax", "jimeng", "seedream", "azure", "codex-cli", "agnes"] as Provider[]) {
+  for (const provider of ["replicate", "google", "openai", "openrouter", "dashscope", "zai", "minimax", "minimax-h3", "jimeng", "seedream", "azure", "codex-cli", "agnes", "sensenova"] as Provider[]) {
     const envPrefix = `BAOYU_IMAGE_GEN_${provider.toUpperCase().replace(/-/g, "_")}`;
     const extendLimit = extendConfig.batch?.provider_limits?.[provider];
     configured[provider] = {
@@ -724,6 +738,8 @@ function inferProviderFromModel(model: string | null): Provider | null {
   const normalized = model.trim();
   if (normalized.includes("seedream") || normalized.includes("seededit")) return "seedream";
   if (normalized === "image-01" || normalized === "image-01-live") return "minimax";
+  if (/minimax-h3/i.test(normalized)) return "minimax-h3";
+  if (/sensenova/i.test(normalized)) return "sensenova";
   if (normalized === "glm-image" || normalized === "cogview-4-250304") return "zai";
   if (normalized.includes("agnes-image")) return "agnes";
   return null;
@@ -742,10 +758,12 @@ export function detectProvider(args: CliArgs): Provider {
     args.provider !== "minimax" &&
     args.provider !== "dashscope" &&
     args.provider !== "codex-cli" &&
-    args.provider !== "agnes"
+    args.provider !== "agnes" &&
+    args.provider !== "sensenova" &&
+    args.provider !== "minimax-h3"
   ) {
     throw new Error(
-      "Reference images require a ref-capable provider. Use --provider google (Gemini multimodal), --provider openai (GPT Image edits), --provider azure (Azure OpenAI), --provider openrouter (OpenRouter multimodal), --provider replicate, --provider dashscope with a wan2.7 image model, --provider seedream for supported Seedream models, --provider minimax for MiniMax subject-reference workflows, --provider codex-cli (Codex image_gen with references), or --provider agnes (Agnes Image)."
+      "Reference images require a ref-capable provider. Use --provider google (Gemini multimodal), --provider openai (GPT Image edits), --provider azure (Azure OpenAI), --provider openrouter (OpenRouter multimodal), --provider replicate, --provider dashscope with a wan2.7 image model, --provider seedream for supported Seedream models, --provider minimax for MiniMax subject-reference workflows, --provider minimax-h3 for MiniMax H3 multi-reference edits, --provider sensenova for SenseNova image edits, --provider codex-cli (Codex image_gen with references), or --provider agnes (Agnes Image)."
     );
   }
 
@@ -762,7 +780,23 @@ export function detectProvider(args: CliArgs): Provider {
   const hasJimeng = !!(process.env.JIMENG_ACCESS_KEY_ID && process.env.JIMENG_SECRET_ACCESS_KEY);
   const hasSeedream = !!process.env.ARK_API_KEY;
   const hasAgnes = !!process.env.AGNES_API_KEY;
+  const hasSensenova = !!process.env.SENSENOVA_API_KEY;
+  const hasMinimaxH3 = !!process.env.MINIMAX_API_KEY;
   const modelProvider = inferProviderFromModel(args.model);
+
+  if (modelProvider === "sensenova") {
+    if (!hasSensenova) {
+      throw new Error("Model looks like a SenseNova image model, but SENSENOVA_API_KEY is not set.");
+    }
+    return "sensenova";
+  }
+
+  if (modelProvider === "minimax-h3") {
+    if (!hasMinimaxH3) {
+      throw new Error("Model looks like a MiniMax H3 image model, but MINIMAX_API_KEY is not set.");
+    }
+    return "minimax-h3";
+  }
 
   if (modelProvider === "seedream") {
     if (!hasSeedream) {
@@ -801,6 +835,7 @@ export function detectProvider(args: CliArgs): Provider {
     if (hasSeedream) return "seedream";
     if (hasMinimax) return "minimax";
     if (hasAgnes) return "agnes";
+    if (hasSensenova) return "sensenova";
     throw new Error(
       "Reference images require Google, OpenAI, Azure, OpenRouter, Replicate, supported Seedream models, MiniMax, or Agnes. Set GOOGLE_API_KEY/GEMINI_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY+AZURE_OPENAI_BASE_URL, OPENROUTER_API_KEY, REPLICATE_API_TOKEN, ARK_API_KEY, MINIMAX_API_KEY, or AGNES_API_KEY, or remove --ref."
     );
@@ -818,13 +853,15 @@ export function detectProvider(args: CliArgs): Provider {
     hasJimeng && "jimeng",
     hasSeedream && "seedream",
     hasAgnes && "agnes",
+    hasSensenova && "sensenova",
+    hasMinimaxH3 && "minimax-h3",
   ].filter(Boolean) as Provider[];
 
   if (available.length === 1) return available[0]!;
   if (available.length > 1) return available[0]!;
 
   throw new Error(
-    "No API key found. Set GOOGLE_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY+AZURE_OPENAI_BASE_URL, OPENROUTER_API_KEY, DASHSCOPE_API_KEY, ZAI_API_KEY, MINIMAX_API_KEY, REPLICATE_API_TOKEN, JIMENG keys, ARK_API_KEY, or AGNES_API_KEY.\n" +
+    "No API key found. Set GOOGLE_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY, AZURE_OPENAI_API_KEY+AZURE_OPENAI_BASE_URL, OPENROUTER_API_KEY, DASHSCOPE_API_KEY, ZAI_API_KEY, MINIMAX_API_KEY, REPLICATE_API_TOKEN, JIMENG keys, ARK_API_KEY, AGNES_API_KEY, or SENSENOVA_API_KEY.\n" +
       "Create ~/.baoyu-skills/.env or <cwd>/.baoyu-skills/.env with your keys."
   );
 }
@@ -838,7 +875,7 @@ function isRemoteReferenceImage(refPath: string): boolean {
 }
 
 function shouldAllowRemoteReferenceImages(provider: Provider | null): boolean {
-  return provider === "dashscope" || provider === "agnes";
+  return provider === "dashscope" || provider === "agnes" || provider === "minimax-h3";
 }
 
 export async function validateReferenceImages(
@@ -894,6 +931,8 @@ async function loadProviderModule(provider: Provider): Promise<ProviderModule> {
   if (provider === "azure") return (await import("./providers/azure")) as ProviderModule;
   if (provider === "codex-cli") return (await import("./providers/codex-cli")) as ProviderModule;
   if (provider === "agnes") return (await import("./providers/agnes")) as ProviderModule;
+  if (provider === "sensenova") return (await import("./providers/sensenova")) as ProviderModule;
+  if (provider === "minimax-h3") return (await import("./providers/minimax-h3")) as ProviderModule;
   return (await import("./providers/openai")) as ProviderModule;
 }
 
@@ -927,6 +966,10 @@ function getModelForProvider(
     if (provider === "azure" && extendConfig.default_model.azure) return extendConfig.default_model.azure;
     if (provider === "codex-cli" && extendConfig.default_model["codex-cli"]) return extendConfig.default_model["codex-cli"];
     if (provider === "agnes" && extendConfig.default_model.agnes) return extendConfig.default_model.agnes;
+    if (provider === "sensenova" && extendConfig.default_model.sensenova) return extendConfig.default_model.sensenova;
+    if (provider === "minimax-h3" && extendConfig.default_model["minimax-h3"]) {
+      return extendConfig.default_model["minimax-h3"];
+    }
   }
   return providerModule.getDefaultModel();
 }
@@ -1070,11 +1113,12 @@ async function writeImage(outputPath: string, imageData: Uint8Array): Promise<vo
 async function generatePreparedTask(task: PreparedTask): Promise<TaskResult> {
   console.error(`Using ${task.provider} / ${task.model} for ${task.id}`);
   console.error(
-    `Switch model: --model <id> | EXTEND.md default_model.${task.provider} | env ${task.provider.toUpperCase()}_IMAGE_MODEL`
+    `Switch model: --model <id> | EXTEND.md default_model.${task.provider} | env ${task.provider.toUpperCase().replace(/-/g, "_")}_IMAGE_MODEL`
   );
 
   let attempts = 0;
-  while (attempts < MAX_ATTEMPTS) {
+  const maxAttempts = task.providerModule.maxAttempts ?? MAX_ATTEMPTS;
+  while (attempts < maxAttempts) {
     attempts += 1;
     try {
       const imageData = await task.providerModule.generateImage(task.prompt, task.model, task.args);
@@ -1090,9 +1134,9 @@ async function generatePreparedTask(task: PreparedTask): Promise<TaskResult> {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      const canRetry = attempts < MAX_ATTEMPTS && isRetryableGenerationError(error);
+      const canRetry = attempts < maxAttempts && isRetryableGenerationError(error);
       if (canRetry) {
-        console.error(`[${task.id}] Attempt ${attempts}/${MAX_ATTEMPTS} failed, retrying...`);
+        console.error(`[${task.id}] Attempt ${attempts}/${maxAttempts} failed, retrying...`);
         continue;
       }
       return {
@@ -1162,7 +1206,7 @@ async function runBatchTasks(
   const acquireProvider = createProviderGate(providerRateLimits);
   const workerCount = getWorkerCount(tasks.length, jobs, maxWorkers);
   console.error(`Batch mode: ${tasks.length} tasks, ${workerCount} workers, parallel mode enabled.`);
-  for (const provider of ["replicate", "google", "openai", "openrouter", "dashscope", "zai", "minimax", "jimeng", "seedream", "azure", "codex-cli", "agnes"] as Provider[]) {
+  for (const provider of ["replicate", "google", "openai", "openrouter", "dashscope", "zai", "minimax", "minimax-h3", "jimeng", "seedream", "azure", "codex-cli", "agnes", "sensenova"] as Provider[]) {
     const limit = providerRateLimits[provider];
     console.error(`- ${provider}: concurrency=${limit.concurrency}, startIntervalMs=${limit.startIntervalMs}`);
   }
